@@ -2,9 +2,9 @@ import React, { useState, useEffect, useRef } from 'react';
 import { initializeApp } from 'firebase/app';
 import { getAuth, signInAnonymously, onAuthStateChanged } from 'firebase/auth';
 import { getFirestore, doc, onSnapshot, setDoc, serverTimestamp } from 'firebase/firestore';
-import { Heart, Camera, MapPin, Send, LogOut, Loader2, AlertTriangle, Image as ImageIcon, X, PenTool, Type, Lock, Maximize2 } from 'lucide-react';
+import { Heart, Camera, MapPin, Send, LogOut, Loader2, Image as ImageIcon, X, PenTool, Type, Lock, Maximize2 } from 'lucide-react';
 
-// --- CONFIGURATION ---
+// --- CONFIGURATION FIREBASE ---
 const firebaseConfig = {
   apiKey: "AIzaSyBw5oZKTpok2YwkZV7XFNCftpwFwyK3mYA",
   authDomain: "lovesync-1ceef.firebaseapp.com",
@@ -19,7 +19,7 @@ const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
 
-// --- COMPRESSION ---
+// --- OUTILS (Compression & Canvas) ---
 const compressImage = (file) => {
   return new Promise((resolve) => {
     const reader = new FileReader();
@@ -29,26 +29,18 @@ const compressImage = (file) => {
       img.src = event.target.result;
       img.onload = () => {
         const canvas = document.createElement('canvas');
-        const MAX_WIDTH = 800; 
+        const MAX_WIDTH = 800;
         const scaleSize = MAX_WIDTH / img.width;
         canvas.width = MAX_WIDTH;
         canvas.height = img.height * scaleSize;
         const ctx = canvas.getContext('2d');
         ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-        resolve(canvas.toDataURL('image/jpeg', 0.7)); 
+        resolve(canvas.toDataURL('image/jpeg', 0.7));
       };
     };
   });
 };
 
-const EMOJIS_CATEGORIES = {
-  "Amour & Humeur": ["❤️", "🧡", "💛", "💚", "💙", "💜", "🖤", "🤍", "🤎", "💔", "❤️‍🔥", "❤️‍🩹", "💕", "💞", "💓", "💗", "💖", "💘", "😊", "🥰", "😘", "😍", "🤩", "🤪", "🥺", "😎", "😴", "🤔", "😭", "😤", "🤯", "🫠", "😷", "🤠", "🥳", "🥴", "😈", "🤡", "💩", "👻", "🙂", "🙃", "😉", "😋", "😛", "😜", "🤓", "🧐", "😕", "😟", "🙁", "😮", "😯", "😲", "😳", "😓", "😥", "😢", "😨", "😱", "😖", "😣", "😞"],
-  "Gestes": ["👍", "👎", "👊", "✊", "🤛", "🤜", "🤞", "✌️", "🤟", "🤘", "👌", "🤌", "🤏", "👈", "👉", "👆", "👇", "☝️", "✋", "🤚", "🖐️", "🖖", "👋", "🤙", "💪", "🙏", "💅", "🤳", "👀", "🧠", "👄", "💋"],
-  "Miam & Activités": ["☕", "🍵", "🍻", "🥂", "🍷", "🥃", "🍸", "🍹", "🍾", "🍔", "🍟", "🍕", "🌭", "🥪", "🌮", "🌯", "🥗", "🥘", "🍝", "🍜", "🍲", "🍛", "🍣", "🍱", "🎮", "🕹️", "🎲", "⚽", "🏀", "🏈", "⚾", "🎾", "🏐", "🏉", "🎱", "🏓", "🏸", "🥊", "🥋", "🛹", "🎿", "🏂", "🏋️", "🏊", "🚗", "✈️", "🚀", "🏠", "💻", "📱", "💸", "💊", "🚬", "🛌", "🚿"],
-  "Nature & Animaux": ["🐶", "🐱", "🐭", "🐹", "🐰", "🦊", "🐻", "🐼", "🐻‍❄️", "🐨", "🐯", "🦁", "🐮", "🐷", "🐽", "🐸", "🐵", "🙈", "🙉", "🙊", "🐒", "🐔", "🐧", "🐦", "🐤", "🐣", "🐥", "🦆", "🦅", "🦉", "🦇", "🐺", "🐗", "🐴", "🦄", "🐝", "🪱", "🐛", "🦋", "🐌", "🐞", "🐜", "🪰", "🪲", "🪳", "🌸", "🏵️", "🌹", "🥀", "🌺", "🌻", "🌼", "🌷", "🌱", "🪴", "🌲", "🌳", "🌴", "🌵", "🌾", "🌿", "☘️", "🍀", "🍁", "🍂", "🍃", "☀️", "🌝", "🌚", "🌙", "☁️", "⛈️", "🔥", "💧", "✨", "🌈", "🌊"]
-};
-
-// --- DESSIN ---
 const DrawingCanvas = ({ onSave, onCancel }) => {
   const canvasRef = useRef(null);
   const [isDrawing, setIsDrawing] = useState(false);
@@ -56,10 +48,9 @@ const DrawingCanvas = ({ onSave, onCancel }) => {
     const canvas = canvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
-    const dpr = window.devicePixelRatio || 1;
     const rect = canvas.getBoundingClientRect();
-    canvas.width = rect.width * dpr; canvas.height = rect.height * dpr;
-    ctx.scale(dpr, dpr); ctx.lineWidth = 3; ctx.lineCap = 'round'; ctx.strokeStyle = '#374151'; 
+    canvas.width = rect.width; canvas.height = rect.height;
+    ctx.lineWidth = 3; ctx.lineCap = 'round'; ctx.strokeStyle = '#374151'; 
   }, []);
   const getPos = (e) => {
     const rect = canvasRef.current.getBoundingClientRect();
@@ -89,12 +80,14 @@ const DrawingCanvas = ({ onSave, onCancel }) => {
   );
 };
 
-const safeStorage = {
-  getItem: (key) => { try { return localStorage.getItem(key); } catch (e) { return null; } },
-  setItem: (key, val) => { try { localStorage.setItem(key, val); } catch (e) {} },
-  removeItem: (key) => { try { localStorage.removeItem(key); } catch (e) {} }
+const EMOJIS_CATEGORIES = {
+  "Amour & Humeur": ["❤️", "🧡", "💛", "💚", "💙", "💜", "🖤", "🤍", "🤎", "💔", "❤️‍🔥", "❤️‍🩹", "💕", "💞", "💓", "💗", "💖", "💘", "😊", "🥰", "😘", "😍", "🤩", "🤪", "🥺", "😎", "😴", "🤔", "😭", "😤", "🤯", "🫠", "😷", "🤠", "🥳", "🥴", "😈", "🤡", "💩", "👻", "🙂", "🙃", "😉", "😋", "😛", "😜", "🤓", "🧐", "😕", "😟", "🙁", "😮", "😯", "😲", "😳", "😓", "😥", "😢", "😨", "😱", "😖", "😣", "😞"],
+  "Gestes": ["👍", "👎", "👊", "✊", "🤛", "🤜", "🤞", "✌️", "🤟", "🤘", "👌", "🤌", "🤏", "👈", "👉", "👆", "👇", "☝️", "✋", "🤚", "🖐️", "🖖", "👋", "🤙", "💪", "🙏", "💅", "🤳", "👀", "🧠", "👄", "💋"],
+  "Miam & Activités": ["☕", "🍵", "🍻", "🥂", "🍷", "🥃", "🍸", "🍹", "🍾", "🍔", "🍟", "🍕", "🌭", "🥪", "🌮", "🌯", "🥗", "🥘", "🍝", "🍜", "🍲", "🍛", "🍣", "🍱", "🎮", "🕹️", "🎲", "⚽", "🏀", "🏈", "⚾", "🎾", "🏐", "🏉", "🎱", "🏓", "🏸", "🥊", "🥋", "🛹", "🎿", "🏂", "🏋️", "🏊", "🚗", "✈️", "🚀", "🏠", "💻", "📱", "💸", "💊", "🚬", "🛌", "🚿"],
+  "Nature & Animaux": ["🐶", "🐱", "🐭", "🐹", "🐰", "🦊", "🐻", "🐼", "🐻‍❄️", "🐨", "🐯", "🦁", "🐮", "🐷", "🐽", "🐸", "🐵", "🙈", "🙉", "🙊", "🐒", "🐔", "🐧", "🐦", "🐤", "🐣", "🐥", "🦆", "🦅", "🦉", "🦇", "🐺", "🐗", "🐴", "🦄", "🐝", "🪱", "🐛", "🦋", "🐌", "🐞", "🐜", "🪰", "🪲", "🪳", "🌸", "🏵️", "🌹", "🥀", "🌺", "🌻", "🌼", "🌷", "🌱", "🪴", "🌲", "🌳", "🌴", "🌵", "🌾", "🌿", "☘️", "🍀", "🍁", "🍂", "🍃", "☀️", "🌝", "🌚", "🌙", "☁️", "⛈️", "🔥", "💧", "✨", "🌈", "🌊"]
 };
 
+// --- APP ---
 export default function App() {
   const [user, setUser] = useState(null); const [roomData, setRoomData] = useState(null); const [loading, setLoading] = useState(true);
   const [inputCode, setInputCode] = useState(""); const [authError, setAuthError] = useState("");
@@ -105,7 +98,7 @@ export default function App() {
   useEffect(() => {
     const init = async () => { try { await signInAnonymously(auth); } catch (e) { console.error(e); } };
     init();
-    const saved = safeStorage.getItem('lovesync_vivien_anais_final');
+    const saved = localStorage.getItem('lovesync_vivien_anais_final');
     if (saved) { try { setCreds(JSON.parse(saved)); setView('app'); } catch(e) { setView('login'); } } else { setView('login'); }
     return onAuthStateChanged(auth, u => { setUser(u); setLoading(false); });
   }, []);
@@ -130,10 +123,10 @@ export default function App() {
     if (code === 'vivienessec') userCreds = { name: 'Vivien', role: 'p1' };
     else if (code === 'anaisefb') userCreds = { name: 'Anaïs', role: 'p2' };
     else { setAuthError("Code incorrect !"); return; }
-    safeStorage.setItem('lovesync_vivien_anais_final', JSON.stringify(userCreds)); setCreds(userCreds); setView('app'); setAuthError("");
+    localStorage.setItem('lovesync_vivien_anais_final', JSON.stringify(userCreds)); setCreds(userCreds); setView('app'); setAuthError("");
   };
 
-  const logout = () => { if(confirm("Se déconnecter ?")) { safeStorage.removeItem('lovesync_vivien_anais_final'); setCreds(null); setInputCode(""); setView('login'); } };
+  const logout = () => { if(confirm("Se déconnecter ?")) { localStorage.removeItem('lovesync_vivien_anais_final'); setCreds(null); setInputCode(""); setView('login'); } };
   const updateDB = async (data) => { if (!user) return; const roomRef = doc(db, 'amoureux', 'notre_espace_secret'); await setDoc(roomRef, data, { merge: true }); };
   const setMood = (emoji) => { setShowEmojiPicker(false); updateDB({ [`${creds.role}_mood`]: emoji, [`${creds.role}_mood_ts`]: Date.now(), [`${creds.role}_prev_mood`]: roomData?.[`${creds.role}_mood`] || null, [`${creds.role}_prev_mood_ts`]: roomData?.[`${creds.role}_mood_ts`] || null }); };
   
@@ -225,12 +218,7 @@ export default function App() {
           <div className="grid grid-cols-2 gap-4">
              <div className="aspect-square bg-gray-50 rounded-2xl relative overflow-hidden group shadow-inner">
                {myData.photo && !isExp(myData.photoTs, 3) ? <img src={myData.photo} className="w-full h-full object-cover"/> : <div className="w-full h-full flex items-center justify-center text-gray-300"><ImageIcon className="w-8 h-8 opacity-20"/></div>}
-               <label className="absolute inset-0 flex items-center justify-center bg-black/5 active:bg-black/20 transition cursor-pointer"><div className="bg-white p-2 rounded-full shadow-lg transform active:scale-90 transition"><Camera className="w-5 h-5 text-gray-700"/></div>
-               
-               {/* ⚠️ CORRECTION CAMÉRA ANDROID : accept="image/*" + capture="user" */}
-               <input type="file" accept="image/*" capture="user" ref={fileInputRef} onChange={uploadPhoto} className="hidden" />
-               
-               </label>
+               <label className="absolute inset-0 flex items-center justify-center bg-black/5 active:bg-black/20 transition cursor-pointer"><div className="bg-white p-2 rounded-full shadow-lg transform active:scale-90 transition"><Camera className="w-5 h-5 text-gray-700"/></div><input type="file" accept="image/*" capture="user" ref={fileInputRef} onChange={uploadPhoto} className="hidden" /></label>
              </div>
              <div className="aspect-square bg-gray-50 rounded-2xl relative overflow-hidden border-2 border-dashed border-gray-200 cursor-pointer hover:border-pink-200 transition" onClick={() => { if(pData.photo && !isExp(pData.photoTs, 3)) setViewingPhoto(pData.photo); }}>
                {pData.photo && !isExp(pData.photoTs, 3) ? <><img src={pData.photo} className="w-full h-full object-cover"/><div className="absolute top-2 right-2 p-1 bg-black/20 rounded-full text-white backdrop-blur-sm"><Maximize2 className="w-3 h-3"/></div><div className="absolute bottom-2 right-2 bg-black/60 backdrop-blur-sm text-white text-[10px] px-2 py-0.5 rounded-full font-mono">{fmtTime(pData.photoTs)}</div></> : <div className="w-full h-full flex items-center justify-center text-gray-300"><ImageIcon className="w-8 h-8 opacity-20"/></div>}
