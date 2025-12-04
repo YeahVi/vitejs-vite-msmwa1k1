@@ -96,6 +96,7 @@ export default function App() {
   const [noteMode, setNoteMode] = useState('text'); const [noteInput, setNoteInput] = useState(""); const fileInputRef = useRef(null);
   
   const bottomRef = useRef(null);
+  const mainRef = useRef(null);
 
   useEffect(() => {
     const init = async () => { try { await signInAnonymously(auth); } catch (e) { console.error(e); } };
@@ -150,27 +151,14 @@ export default function App() {
   
   const scrollToBottom = () => { setTimeout(() => { bottomRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' }); }, 300); };
 
-  // --- LOGIQUE SHIFUMI ---
-  const playShifumi = (move) => {
-    updateDB({ [`game_${creds.role}_move`]: move });
-  };
-
+  // --- SHIFUMI ---
+  const playShifumi = (move) => { updateDB({ [`game_${creds.role}_move`]: move }); };
   const resetGame = (winnerRole) => {
     const newScore = (roomData?.[`game_${winnerRole}_score`] || 0) + 1;
-    // On calcule le résultat texte
-    const p1M = roomData?.game_p1_move;
-    const p2M = roomData?.game_p2_move;
+    const p1M = roomData?.game_p1_move; const p2M = roomData?.game_p2_move;
     const resultText = `${myDisplayName} (${p1M}) vs ${partnerDisplayName} (${p2M})`;
-
-    updateDB({
-      game_p1_move: null,
-      game_p2_move: null,
-      [`game_${winnerRole}_score`]: newScore,
-      game_last_result: resultText,
-      game_last_winner: winnerRole === creds.role ? 'Moi' : partnerDisplayName
-    });
+    updateDB({ game_p1_move: null, game_p2_move: null, [`game_${winnerRole}_score`]: newScore, game_last_result: resultText, game_last_winner: winnerRole === creds.role ? 'Moi' : partnerDisplayName });
   };
-
   const getShifumiResult = (m1, m2) => {
     if (!m1 || !m2) return null;
     if (m1 === m2) return 'draw';
@@ -186,7 +174,6 @@ export default function App() {
   };
   const isExp = (ts, h) => !ts || (Date.now()-ts)>(3*3600000); 
   const fmtTime = (ts) => ts ? new Date(ts).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}) : "";
-  
   const otherRole = creds?.role === 'p1' ? 'p2' : 'p1';
   const myDisplayName = creds?.role === 'p1' ? 'Vivien' : 'Anaïs';
   const partnerDisplayName = creds?.role === 'p1' ? 'Anaïs' : 'Vivien';
@@ -194,8 +181,6 @@ export default function App() {
   const myData = { mood: roomData?.[`${creds?.role}_mood`], moodTs: roomData?.[`${creds?.role}_mood_ts`], photo: roomData?.[`${creds?.role}_photo`], photoTs: roomData?.[`${creds?.role}_photo_ts`], geo: roomData?.[`${creds?.role}_geo`] };
   const pData = { mood: roomData?.[`${otherRole}_mood`], moodTs: roomData?.[`${otherRole}_mood_ts`], photo: roomData?.[`${otherRole}_photo`], photoTs: roomData?.[`${otherRole}_photo_ts`], geo: roomData?.[`${otherRole}_geo`] };
   const dist = getDist(myData.geo?.lat, myData.geo?.lng, pData.geo?.lat, pData.geo?.lng);
-
-  // SHIFUMI DATA
   const myMove = roomData?.[`game_${creds?.role}_move`];
   const partnerMove = roomData?.[`game_${otherRole}_move`];
   const winner = getShifumiResult(roomData?.game_p1_move, roomData?.game_p2_move);
@@ -222,7 +207,6 @@ export default function App() {
   return (
     <div className="fixed inset-0 bg-slate-50 font-sans overflow-hidden">
       {viewingPhoto && <div className="fixed inset-0 z-[60] bg-black/90 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in" onClick={() => setViewingPhoto(null)}><img src={viewingPhoto} className="max-w-full max-h-full rounded-xl shadow-2xl object-contain animate-in zoom-in-95 duration-200" /><button className="absolute top-6 right-6 p-2 bg-white/20 rounded-full text-white backdrop-blur hover:bg-white/40"><X className="w-6 h-6"/></button></div>}
-      
       {showEmojiPicker && (
         <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in" onClick={()=>setShowEmojiPicker(false)}>
            <div className="bg-white w-full max-w-sm rounded-3xl p-4 shadow-xl flex flex-col max-h-[80vh]" onClick={e=>e.stopPropagation()}>
@@ -240,14 +224,10 @@ export default function App() {
            </div>
         </div>
       )}
-
-      {/* HEADER */}
       <div className="absolute top-0 left-0 right-0 p-6 bg-white flex justify-between items-center z-10 shadow-sm h-20">
         <div><h2 className="font-bold text-lg text-gray-800">{creds.name}</h2><div className="flex items-center text-xs text-gray-500 font-medium"><MapPin className="w-3 h-3 mr-1 text-pink-500 fill-current"/>{dist ? `${dist} km` : "Recherche..."}</div></div>
         <button onClick={logout} className="p-2 rounded-full hover:bg-gray-100 transition"><LogOut className="w-5 h-5 text-gray-400"/></button>
       </div>
-
-      {/* CONTENU */}
       <div ref={mainRef} className="absolute top-20 bottom-0 left-0 right-0 overflow-y-auto p-4 space-y-5 pb-32 overscroll-none">
         
         {/* MOODS */}
@@ -304,73 +284,26 @@ export default function App() {
           ) : ( <DrawingCanvas onSave={sendSketch} onCancel={() => setNoteMode('text')} /> )}
         </div>
 
-        {/* --- JEU SHIFUMI --- */}
+        {/* JEU SHIFUMI */}
         <div className="bg-purple-50 p-5 rounded-[2.5rem] shadow-sm border border-purple-100 relative">
           <div className="flex justify-between items-center mb-4">
-             <h3 className="text-xs font-bold text-purple-600 uppercase tracking-widest flex items-center gap-2">
-               <Swords className="w-4 h-4"/> Duel Shifumi
-             </h3>
-             <div className="flex gap-2 text-[10px] font-bold">
-               <span className="bg-white px-2 py-1 rounded-lg text-purple-800 border border-purple-100">Moi: {roomData?.[`game_${creds?.role}_score`] || 0}</span>
-               <span className="bg-white px-2 py-1 rounded-lg text-purple-800 border border-purple-100">Lui/Elle: {roomData?.[`game_${otherRole}_score`] || 0}</span>
-             </div>
+             <h3 className="text-xs font-bold text-purple-600 uppercase tracking-widest flex items-center gap-2"><Swords className="w-4 h-4"/> Duel</h3>
+             <div className="flex gap-2 text-[10px] font-bold"><span className="bg-white px-2 py-1 rounded-lg text-purple-800 border border-purple-100">Moi: {roomData?.[`game_${creds?.role}_score`] || 0}</span><span className="bg-white px-2 py-1 rounded-lg text-purple-800 border border-purple-100">Lui/Elle: {roomData?.[`game_${otherRole}_score`] || 0}</span></div>
           </div>
-
           <div className="text-center">
-            {/* ETAT 1 : JEU EN COURS (LES DEUX ONT JOUÉ) */}
             {myMove && partnerMove ? (
               <div className="animate-in zoom-in duration-300">
-                <div className="text-sm font-bold text-gray-600 mb-2">Résultat du duel !</div>
-                <div className="flex justify-center items-center gap-4 text-4xl mb-4">
-                  <div className="bg-white p-2 rounded-2xl shadow-sm">{myMove}</div>
-                  <div className="text-lg font-bold text-purple-300">VS</div>
-                  <div className="bg-white p-2 rounded-2xl shadow-sm">{partnerMove}</div>
-                </div>
-                <div className="text-lg font-bold text-purple-600 mb-3">
-                  {winner === 'draw' ? "Égalité ! 🤝" : (winner === creds.role ? "Tu as gagné ! 🎉" : "Perdu... 😭")}
-                </div>
-                <button 
-                  onClick={() => resetGame(winner === 'draw' ? 'draw' : winner)}
-                  className="bg-purple-600 text-white px-6 py-2 rounded-xl font-bold shadow-lg hover:bg-purple-700 active:scale-95 transition"
-                >
-                  {winner === 'draw' ? "Rejouer" : "Valider le point & Rejouer"}
-                </button>
+                <div className="flex justify-center items-center gap-4 text-4xl mb-4"><div className="bg-white p-2 rounded-2xl shadow-sm">{myMove}</div><div className="text-lg font-bold text-purple-300">VS</div><div className="bg-white p-2 rounded-2xl shadow-sm">{partnerMove}</div></div>
+                <div className="text-lg font-bold text-purple-600 mb-3">{winner === 'draw' ? "Égalité ! 🤝" : (winner === creds.role ? "Tu as gagné ! 🎉" : "Perdu... 😭")}</div>
+                <button onClick={() => resetGame(winner === 'draw' ? 'draw' : winner)} className="bg-purple-600 text-white px-6 py-2 rounded-xl font-bold shadow-lg hover:bg-purple-700 active:scale-95 transition">{winner === 'draw' ? "Rejouer" : "Valider le point"}</button>
               </div>
             ) : (
-              /* ETAT 2 : EN ATTENTE DE COUP */
-              <>
-                {myMove ? (
-                  <div className="py-4">
-                    <div className="text-4xl mb-2 animate-bounce">⏳</div>
-                    <p className="text-sm text-gray-500 font-medium">En attente de {partnerDisplayName}...</p>
-                    <p className="text-xs text-gray-400 mt-1">(Tu as joué {myMove})</p>
-                  </div>
-                ) : (
-                  <div className="flex justify-around py-2">
-                    {['🪨', '📄', '✂️'].map(m => (
-                      <button 
-                        key={m}
-                        onClick={() => playShifumi(m)}
-                        className="text-4xl bg-white p-4 rounded-2xl shadow-sm border border-purple-50 hover:scale-110 active:scale-90 transition"
-                      >
-                        {m}
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </>
+              <>{myMove ? <div className="py-4"><div className="text-4xl mb-2 animate-bounce">⏳</div><p className="text-sm text-gray-500 font-medium">Attente de l'adversaire...</p></div> : <div className="flex justify-around py-2">{['🪨', '📄', '✂️'].map(m => <button key={m} onClick={() => playShifumi(m)} className="text-4xl bg-white p-4 rounded-2xl shadow-sm border border-purple-50 hover:scale-110 active:scale-90 transition">{m}</button>)}</div>}</>
             )}
-            
-            {/* HISTORIQUE DERNIER MATCH */}
-            {roomData?.game_last_result && !myMove && !partnerMove && (
-              <div className="mt-4 pt-3 border-t border-purple-100 text-xs text-gray-400">
-                Dernier : {roomData.game_last_result} ({roomData.game_last_winner} a gagné)
-              </div>
-            )}
+            {roomData?.game_last_result && !myMove && !partnerMove && <div className="mt-4 pt-3 border-t border-purple-100 text-xs text-gray-400">Dernier : {roomData.game_last_result}</div>}
           </div>
         </div>
 
-        {/* Élément invisible pour le scroll */}
         <div ref={bottomRef} className="h-4"></div>
       </div>
     </div>
