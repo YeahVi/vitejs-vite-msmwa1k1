@@ -55,9 +55,11 @@ const DrawingCanvas = ({ onSave, onCancel }) => {
     const canvas = canvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
+    // Fix Retina display blurry canvas
+    const dpr = window.devicePixelRatio || 1;
     const rect = canvas.getBoundingClientRect();
-    canvas.width = rect.width; canvas.height = rect.height;
-    ctx.lineWidth = 3; ctx.lineCap = 'round'; ctx.strokeStyle = '#374151'; 
+    canvas.width = rect.width * dpr; canvas.height = rect.height * dpr;
+    ctx.scale(dpr, dpr); ctx.lineWidth = 3; ctx.lineCap = 'round'; ctx.strokeStyle = '#374151'; 
   }, []);
   const getPos = (e) => {
     const rect = canvasRef.current.getBoundingClientRect();
@@ -94,8 +96,9 @@ export default function App() {
   const [showEmojiPicker, setShowEmojiPicker] = useState(false); const [viewingPhoto, setViewingPhoto] = useState(null);
   const [noteMode, setNoteMode] = useState('text'); const [noteInput, setNoteInput] = useState(""); const fileInputRef = useRef(null);
   
-  // FIX CLAVIER
+  // Ref pour le scroll
   const bottomRef = useRef(null);
+  const mainRef = useRef(null); // Ref pour le conteneur principal
 
   useEffect(() => {
     const init = async () => { try { await signInAnonymously(auth); } catch (e) { console.error(e); } };
@@ -140,11 +143,24 @@ export default function App() {
     } catch(err) { alert("Erreur photo"); }
   };
 
-  const sendNote = async () => { if (!noteInput.trim()) return; await updateDB({ shared_note: noteInput, shared_sketch: null, note_author: creds.name, note_ts: Date.now() }); setNoteInput(""); };
+  const sendNote = async () => { 
+    if (!noteInput.trim()) return; 
+    await updateDB({ shared_note: noteInput, shared_sketch: null, note_author: creds.name, note_ts: Date.now() }); 
+    setNoteInput("");
+    // Fix: après envoi, on s'assure que le layout reste propre
+    setTimeout(() => {
+        window.scrollTo(0, 0); 
+    }, 100);
+  };
+  
   const sendSketch = async (base64) => { await updateDB({ shared_sketch: base64, shared_note: null, note_author: creds.name, note_ts: Date.now() }); setNoteMode('text'); };
   
-  // FIX CLAVIER: Scroll auto
-  const scrollToBottom = () => { setTimeout(() => { bottomRef.current?.scrollIntoView({ behavior: 'smooth' }); }, 300); };
+  // FIX CLAVIER : Scroll into view sur le conteneur, pas la page entière
+  const scrollToBottom = () => { 
+    setTimeout(() => { 
+        bottomRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }, 300); 
+  };
 
   const getDist = (l1, n1, l2, n2) => {
     if(!l1 || !n1 || !l2 || !n2) return null;
@@ -163,11 +179,10 @@ export default function App() {
   const pData = { mood: roomData?.[`${otherRole}_mood`], moodTs: roomData?.[`${otherRole}_mood_ts`], photo: roomData?.[`${otherRole}_photo`], photoTs: roomData?.[`${otherRole}_photo_ts`], geo: roomData?.[`${otherRole}_geo`] };
   const dist = getDist(myData.geo?.lat, myData.geo?.lng, pData.geo?.lat, pData.geo?.lng);
 
-  // FIX LAYOUT: h-[100dvh]
-  if (loading || view === 'loading') return <div className="h-[100dvh] bg-pink-50 flex items-center justify-center"><Loader2 className="animate-spin text-pink-400" /></div>;
+  if (loading || view === 'loading') return <div className="fixed inset-0 bg-pink-50 flex items-center justify-center"><Loader2 className="animate-spin text-pink-400" /></div>;
   if (view === 'login') {
     return (
-      <div className="h-[100dvh] bg-pink-50 flex flex-col items-center justify-center p-6">
+      <div className="fixed inset-0 bg-pink-50 flex flex-col items-center justify-center p-6">
         <div className="bg-white p-8 rounded-3xl shadow-xl w-full max-w-sm text-center">
           <Heart className="w-12 h-12 text-pink-500 mx-auto mb-4 animate-bounce" />
           <h1 className="text-2xl font-bold text-gray-800 mb-2">LoveSync</h1>
@@ -184,50 +199,39 @@ export default function App() {
   }
 
   return (
-    <div className="h-[100dvh] bg-slate-50 font-sans relative overflow-y-auto overflow-x-hidden">
-      {viewingPhoto && <div className="fixed inset-0 z-[60] bg-black/90 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in" onClick={() => setViewingPhoto(null)}><img src={viewingPhoto} className="max-w-full max-h-full rounded-xl shadow-2xl object-contain" /><button className="absolute top-6 right-6 p-2 bg-white/20 rounded-full text-white backdrop-blur hover:bg-white/40"><X className="w-6 h-6"/></button></div>}
-      {showEmojiPicker && (
-        <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in" onClick={()=>setShowEmojiPicker(false)}>
-           <div className="bg-white w-full max-w-sm rounded-3xl p-4 shadow-xl flex flex-col max-h-[80vh]" onClick={e=>e.stopPropagation()}>
-             <div className="flex justify-between mb-2 border-b pb-2"><h3 className="font-bold text-gray-700">Choisis ton mood</h3><X className="cursor-pointer text-gray-400" onClick={()=>setShowEmojiPicker(false)}/></div>
-             <div className="overflow-y-auto flex-1 p-1">
-                {Object.entries(EMOJIS_CATEGORIES).map(([catName, emojis]) => (
-                  <div key={catName} className="mb-4">
-                    <h4 className="text-xs font-bold text-gray-400 uppercase mb-2 sticky top-0 bg-white py-1">{catName}</h4>
-                    <div className="grid grid-cols-6 gap-2">
-                      {emojis.map(e => <button key={e} onClick={(evt) => { evt.stopPropagation(); setMood(e); }} className="text-3xl p-1 hover:bg-gray-100 active:bg-pink-100 rounded-lg cursor-pointer transition-transform hover:scale-110 active:scale-90 flex items-center justify-center">{e}</button>)}
-                    </div>
-                  </div>
-                ))}
-             </div>
-           </div>
-        </div>
-      )}
-      <div className="p-6 bg-white flex justify-between items-center sticky top-0 z-10 shadow-sm">
+    // FIX LAYOUT: Structure "Fixed" pour éviter le scroll global et les bandes noires
+    <div className="fixed inset-0 bg-slate-50 font-sans overflow-hidden">
+      
+      {/* HEADER FIXE */}
+      <div className="absolute top-0 left-0 right-0 p-6 bg-white flex justify-between items-center z-10 shadow-sm h-20">
         <div><h2 className="font-bold text-lg text-gray-800">{creds.name}</h2><div className="flex items-center text-xs text-gray-500 font-medium"><MapPin className="w-3 h-3 mr-1 text-pink-500 fill-current"/>{dist ? `${dist} km` : "Recherche..."}</div></div>
         <button onClick={logout} className="p-2 rounded-full hover:bg-gray-100 transition"><LogOut className="w-5 h-5 text-gray-400"/></button>
       </div>
-      <div className="p-4 space-y-5 max-w-md mx-auto pb-32">
+
+      {/* CONTENU SCROLLABLE - Padding top pour le header, padding bottom pour laisser de l'espace */}
+      <div ref={mainRef} className="absolute top-20 bottom-0 left-0 right-0 overflow-y-auto p-4 space-y-5 pb-32 overscroll-none">
+        
         <div className="grid grid-cols-2 gap-4">
           <div onClick={()=>setShowEmojiPicker(true)} className="bg-white p-4 rounded-[2rem] shadow-sm text-center border-b-4 border-blue-100 cursor-pointer active:scale-95 transition hover:shadow-md relative overflow-hidden">
             <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-blue-200 to-cyan-200"></div><div className="text-[10px] font-bold text-blue-400 mb-2 uppercase tracking-wider">Moi ({myDisplayName})</div>
-            {isExp(myData.moodTs, 1) ? <span className="text-4xl grayscale opacity-20 filter blur-[0.5px]">😶</span> : <span className="text-5xl drop-shadow-sm">{myData.mood}</span>}
+            {isExp(myData.moodTs, 3) ? <span className="text-4xl grayscale opacity-20 filter blur-[0.5px]">😶</span> : <span className="text-5xl drop-shadow-sm">{myData.mood}</span>}
             <div className="text-[10px] text-gray-400 mt-2 font-mono">{fmtTime(myData.moodTs)}</div>
           </div>
           <div className="bg-white p-4 rounded-[2rem] shadow-sm text-center border-b-4 border-pink-100 relative overflow-hidden">
             <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-pink-200 to-rose-200"></div><div className="text-[10px] font-bold text-pink-400 mb-2 uppercase tracking-wider truncate px-2">{partnerDisplayName}</div>
-            {isExp(pData.moodTs, 1) ? <div className="text-4xl grayscale opacity-20 filter blur-[0.5px]">😴</div> : <div className="text-5xl animate-bounce-slow drop-shadow-sm">{pData.mood}</div>}
+            {isExp(pData.moodTs, 3) ? <div className="text-4xl grayscale opacity-20 filter blur-[0.5px]">😴</div> : <div className="text-5xl animate-bounce-slow drop-shadow-sm">{pData.mood}</div>}
             <div className="text-[10px] text-gray-400 mt-2 font-mono">{fmtTime(pData.moodTs)}</div>
           </div>
         </div>
+
         <div className="bg-white p-5 rounded-[2.5rem] shadow-sm relative">
           <h3 className="text-xs font-bold text-gray-400 mb-4 flex items-center uppercase tracking-widest"><Camera className="w-4 h-4 mr-2 text-gray-600"/> Live (3h)</h3>
           <div className="grid grid-cols-2 gap-4">
              <div className="aspect-square bg-gray-50 rounded-2xl relative overflow-hidden group shadow-inner">
                {myData.photo && !isExp(myData.photoTs, 3) ? <img src={myData.photo} className="w-full h-full object-cover"/> : <div className="w-full h-full flex items-center justify-center text-gray-300"><ImageIcon className="w-8 h-8 opacity-20"/></div>}
                <label className="absolute inset-0 flex items-center justify-center bg-black/5 active:bg-black/20 transition cursor-pointer"><div className="bg-white p-2 rounded-full shadow-lg transform active:scale-90 transition"><Camera className="w-5 h-5 text-gray-700"/></div>
-               {/* FIX CAMÉRA : capture="user" */}
-               <input type="file" accept="image/*" capture="user" ref={fileInputRef} onChange={uploadPhoto} className="hidden" />
+               {/* FIX SAMSUNG: capture="camera" en plus de "user" */}
+               <input type="file" accept="image/*" capture="camera" ref={fileInputRef} onChange={uploadPhoto} className="hidden" />
                </label>
              </div>
              <div className="aspect-square bg-gray-50 rounded-2xl relative overflow-hidden border-2 border-dashed border-gray-200 cursor-pointer hover:border-pink-200 transition" onClick={() => { if(pData.photo && !isExp(pData.photoTs, 3)) setViewingPhoto(pData.photo); }}>
@@ -235,6 +239,7 @@ export default function App() {
              </div>
           </div>
         </div>
+
         <div className="bg-[#fffdf5] p-5 rounded-[2.5rem] shadow-sm border border-yellow-100 relative min-h-[160px]">
           <div className="flex justify-between mb-3 items-center">
             <span className="text-[10px] font-bold text-yellow-600 uppercase tracking-widest bg-yellow-100 px-2 py-1 rounded-lg">Frigo</span>
@@ -256,16 +261,36 @@ export default function App() {
                 className="flex-1 rounded-xl border-none outline-none px-3 text-sm bg-transparent placeholder-gray-300 text-gray-900" 
                 placeholder="Un petit mot..." 
                 value={noteInput} 
-                onFocus={scrollToBottom} // SCROLL AUTO ACTIVÉ
+                onFocus={scrollToBottom} 
                 onChange={e=>setNoteInput(e.target.value)} 
               />
               <button onClick={sendNote} className="bg-yellow-400 active:bg-yellow-500 text-yellow-900 p-2.5 rounded-lg transition active:scale-95 shadow-sm"><Send className="w-4 h-4"/></button>
             </div>
           ) : ( <DrawingCanvas onSave={sendSketch} onCancel={() => setNoteMode('text')} /> )}
         </div>
+        
         {/* Élément invisible pour le scroll */}
         <div ref={bottomRef} className="h-4"></div>
       </div>
+
+      {viewingPhoto && <div className="fixed inset-0 z-[60] bg-black/90 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in" onClick={() => setViewingPhoto(null)}><img src={viewingPhoto} className="max-w-full max-h-full rounded-xl shadow-2xl object-contain animate-in zoom-in-95 duration-200" /><button className="absolute top-6 right-6 p-2 bg-white/20 rounded-full text-white backdrop-blur hover:bg-white/40"><X className="w-6 h-6"/></button></div>}
+      {showEmojiPicker && (
+        <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in" onClick={()=>setShowEmojiPicker(false)}>
+           <div className="bg-white w-full max-w-sm rounded-3xl p-4 shadow-xl flex flex-col max-h-[80vh]" onClick={e=>e.stopPropagation()}>
+             <div className="flex justify-between mb-2 border-b pb-2"><h3 className="font-bold text-gray-700">Choisis ton mood</h3><X className="cursor-pointer text-gray-400" onClick={()=>setShowEmojiPicker(false)}/></div>
+             <div className="overflow-y-auto flex-1 p-1">
+                {Object.entries(EMOJIS_CATEGORIES).map(([catName, emojis]) => (
+                  <div key={catName} className="mb-4">
+                    <h4 className="text-xs font-bold text-gray-400 uppercase mb-2 sticky top-0 bg-white py-1">{catName}</h4>
+                    <div className="grid grid-cols-6 gap-2">
+                      {emojis.map(e => <button key={e} onClick={(evt) => { evt.stopPropagation(); setMood(e); }} className="text-3xl p-1 hover:bg-gray-100 active:bg-pink-100 rounded-lg cursor-pointer transition-transform hover:scale-110 active:scale-90 flex items-center justify-center">{e}</button>)}
+                    </div>
+                  </div>
+                ))}
+             </div>
+           </div>
+        </div>
+      )}
     </div>
   );
 }
