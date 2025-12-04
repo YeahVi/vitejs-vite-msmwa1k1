@@ -2,9 +2,9 @@ import React, { useState, useEffect, useRef } from 'react';
 import { initializeApp } from 'firebase/app';
 import { getAuth, signInAnonymously, onAuthStateChanged } from 'firebase/auth';
 import { getFirestore, doc, onSnapshot, setDoc, serverTimestamp } from 'firebase/firestore';
-import { Heart, Camera, MapPin, Send, LogOut, Loader2, Image as ImageIcon, X, PenTool, Type, Lock, Maximize2, Trophy, Swords } from 'lucide-react';
+import { Heart, Camera, MapPin, Send, LogOut, Loader2, Image as ImageIcon, X, PenTool, Type, Lock, Maximize2, Swords } from 'lucide-react';
 
-// --- CONFIGURATION ---
+// --- CONFIGURATION FIREBASE ---
 const firebaseConfig = {
   apiKey: "AIzaSyBw5oZKTpok2YwkZV7XFNCftpwFwyK3mYA",
   authDomain: "lovesync-1ceef.firebaseapp.com",
@@ -157,7 +157,14 @@ export default function App() {
     const newScore = (roomData?.[`game_${winnerRole}_score`] || 0) + 1;
     const p1M = roomData?.game_p1_move; const p2M = roomData?.game_p2_move;
     const resultText = `${myDisplayName} (${p1M}) vs ${partnerDisplayName} (${p2M})`;
-    updateDB({ game_p1_move: null, game_p2_move: null, [`game_${winnerRole}_score`]: newScore, game_last_result: resultText, game_last_winner: winnerRole === creds.role ? 'Moi' : partnerDisplayName });
+    // On enregistre le rôle du gagnant pour la couleur (p1, p2 ou draw)
+    updateDB({ 
+      game_p1_move: null, 
+      game_p2_move: null, 
+      [`game_${winnerRole}_score`]: newScore, 
+      game_last_result: resultText, 
+      game_last_winner_role: winnerRole 
+    });
   };
   const getShifumiResult = (m1, m2) => {
     if (!m1 || !m2) return null;
@@ -184,6 +191,10 @@ export default function App() {
   const myMove = roomData?.[`game_${creds?.role}_move`];
   const partnerMove = roomData?.[`game_${otherRole}_move`];
   const winner = getShifumiResult(roomData?.game_p1_move, roomData?.game_p2_move);
+  
+  // Couleur du dernier match
+  const lastWinRole = roomData?.game_last_winner_role;
+  const lastResultColor = lastWinRole === 'draw' ? 'text-gray-400' : (lastWinRole === creds?.role ? 'text-green-500 font-bold' : 'text-red-400 font-bold');
 
   if (loading || view === 'loading') return <div className="fixed inset-0 bg-pink-50 flex items-center justify-center"><Loader2 className="animate-spin text-pink-400" /></div>;
   if (view === 'login') {
@@ -278,7 +289,13 @@ export default function App() {
           </div>
           {noteMode === 'text' ? (
             <div className="flex gap-2 bg-white p-1 rounded-xl shadow-sm border border-yellow-50">
-              <input className="flex-1 rounded-xl border-none outline-none px-3 text-sm bg-transparent placeholder-gray-300 text-gray-900" placeholder="Un petit mot..." value={noteInput} onFocus={scrollToBottom} onChange={e=>setNoteInput(e.target.value)} />
+              <input 
+                className="flex-1 rounded-xl border-none outline-none px-3 text-sm bg-transparent placeholder-gray-300 text-gray-900" 
+                placeholder="Un petit mot..." 
+                value={noteInput} 
+                onFocus={scrollToBottom} 
+                onChange={e=>setNoteInput(e.target.value)} 
+              />
               <button onClick={sendNote} className="bg-yellow-400 active:bg-yellow-500 text-yellow-900 p-2.5 rounded-lg transition active:scale-95 shadow-sm"><Send className="w-4 h-4"/></button>
             </div>
           ) : ( <DrawingCanvas onSave={sendSketch} onCancel={() => setNoteMode('text')} /> )}
@@ -288,7 +305,10 @@ export default function App() {
         <div className="bg-purple-50 p-5 rounded-[2.5rem] shadow-sm border border-purple-100 relative">
           <div className="flex justify-between items-center mb-4">
              <h3 className="text-xs font-bold text-purple-600 uppercase tracking-widest flex items-center gap-2"><Swords className="w-4 h-4"/> Duel</h3>
-             <div className="flex gap-2 text-[10px] font-bold"><span className="bg-white px-2 py-1 rounded-lg text-purple-800 border border-purple-100">Moi: {roomData?.[`game_${creds?.role}_score`] || 0}</span><span className="bg-white px-2 py-1 rounded-lg text-purple-800 border border-purple-100">Lui/Elle: {roomData?.[`game_${otherRole}_score`] || 0}</span></div>
+             <div className="flex gap-2 text-[10px] font-bold">
+               <span className="bg-white px-2 py-1 rounded-lg text-purple-800 border border-purple-100">Moi: {roomData?.[`game_${creds?.role}_score`] || 0}</span>
+               <span className="bg-white px-2 py-1 rounded-lg text-purple-800 border border-purple-100">{partnerDisplayName}: {roomData?.[`game_${otherRole}_score`] || 0}</span>
+             </div>
           </div>
           <div className="text-center">
             {myMove && partnerMove ? (
@@ -298,9 +318,9 @@ export default function App() {
                 <button onClick={() => resetGame(winner === 'draw' ? 'draw' : winner)} className="bg-purple-600 text-white px-6 py-2 rounded-xl font-bold shadow-lg hover:bg-purple-700 active:scale-95 transition">{winner === 'draw' ? "Rejouer" : "Valider le point"}</button>
               </div>
             ) : (
-              <>{myMove ? <div className="py-4"><div className="text-4xl mb-2 animate-bounce">⏳</div><p className="text-sm text-gray-500 font-medium">Attente de l'adversaire...</p></div> : <div className="flex justify-around py-2">{['🪨', '📄', '✂️'].map(m => <button key={m} onClick={() => playShifumi(m)} className="text-4xl bg-white p-4 rounded-2xl shadow-sm border border-purple-50 hover:scale-110 active:scale-90 transition">{m}</button>)}</div>}</>
+              <>{myMove ? <div className="py-4"><div className="text-4xl mb-2 animate-bounce">{myMove}</div><p className="text-sm text-gray-500 font-medium">Tu as joué {myMove}, attente de {partnerDisplayName}...</p></div> : <div className="flex justify-around py-2">{['🪨', '📄', '✂️'].map(m => <button key={m} onClick={() => playShifumi(m)} className="text-4xl bg-white p-4 rounded-2xl shadow-sm border border-purple-50 hover:scale-110 active:scale-90 transition">{m}</button>)}</div>}</>
             )}
-            {roomData?.game_last_result && !myMove && !partnerMove && <div className="mt-4 pt-3 border-t border-purple-100 text-xs text-gray-400">Dernier : {roomData.game_last_result}</div>}
+            {roomData?.game_last_result && !myMove && !partnerMove && <div className={`mt-4 pt-3 border-t border-purple-100 text-xs ${lastResultColor}`}>Dernier : {roomData.game_last_result}</div>}
           </div>
         </div>
 
