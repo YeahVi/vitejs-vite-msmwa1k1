@@ -4,7 +4,7 @@ import { getAuth, signInAnonymously, onAuthStateChanged } from 'firebase/auth';
 import { getFirestore, doc, onSnapshot, setDoc, serverTimestamp } from 'firebase/firestore';
 import { Heart, Camera, MapPin, Send, LogOut, Loader2, AlertTriangle, Image as ImageIcon, X, PenTool, Type, Lock, Maximize2 } from 'lucide-react';
 
-// --- TA CONFIGURATION (Déjà remplie) ---
+// --- CONFIGURATION ---
 const firebaseConfig = {
   apiKey: "AIzaSyBw5oZKTpok2YwkZV7XFNCftpwFwyK3mYA",
   authDomain: "lovesync-1ceef.firebaseapp.com",
@@ -15,12 +15,11 @@ const firebaseConfig = {
   measurementId: "G-CYZF1B9R13"
 };
 
-// Initialisation
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
 
-// --- COMPRESSION DES PHOTOS (Anti-limite 1Mo) ---
+// --- COMPRESSION ---
 const compressImage = (file) => {
   return new Promise((resolve) => {
     const reader = new FileReader();
@@ -30,13 +29,13 @@ const compressImage = (file) => {
       img.src = event.target.result;
       img.onload = () => {
         const canvas = document.createElement('canvas');
-        const MAX_WIDTH = 800; // On réduit la taille
+        const MAX_WIDTH = 800; 
         const scaleSize = MAX_WIDTH / img.width;
         canvas.width = MAX_WIDTH;
         canvas.height = img.height * scaleSize;
         const ctx = canvas.getContext('2d');
         ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-        resolve(canvas.toDataURL('image/jpeg', 0.7)); // Qualité 70%
+        resolve(canvas.toDataURL('image/jpeg', 0.7)); 
       };
     };
   });
@@ -135,13 +134,7 @@ export default function App() {
   };
 
   const logout = () => { if(confirm("Se déconnecter ?")) { safeStorage.removeItem('lovesync_vivien_anais_final'); setCreds(null); setInputCode(""); setView('login'); } };
-  
-  const updateDB = async (data) => { 
-    if (!user) return; 
-    const roomRef = doc(db, 'amoureux', 'notre_espace_secret'); 
-    await setDoc(roomRef, data, { merge: true }); 
-  };
-  
+  const updateDB = async (data) => { if (!user) return; const roomRef = doc(db, 'amoureux', 'notre_espace_secret'); await setDoc(roomRef, data, { merge: true }); };
   const setMood = (emoji) => { setShowEmojiPicker(false); updateDB({ [`${creds.role}_mood`]: emoji, [`${creds.role}_mood_ts`]: Date.now(), [`${creds.role}_prev_mood`]: roomData?.[`${creds.role}_mood`] || null, [`${creds.role}_prev_mood_ts`]: roomData?.[`${creds.role}_mood_ts`] || null }); };
   
   const uploadPhoto = async (e) => {
@@ -164,8 +157,6 @@ export default function App() {
   const isExp = (ts, h) => !ts || (Date.now()-ts)>(h*3600000);
   const fmtTime = (ts) => ts ? new Date(ts).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}) : "";
   const otherRole = creds?.role === 'p1' ? 'p2' : 'p1';
-  
-  // PRÉNOMS
   const myDisplayName = creds?.role === 'p1' ? 'Vivien' : 'Anaïs';
   const partnerDisplayName = creds?.role === 'p1' ? 'Anaïs' : 'Vivien';
 
@@ -235,8 +226,11 @@ export default function App() {
              <div className="aspect-square bg-gray-50 rounded-2xl relative overflow-hidden group shadow-inner">
                {myData.photo && !isExp(myData.photoTs, 3) ? <img src={myData.photo} className="w-full h-full object-cover"/> : <div className="w-full h-full flex items-center justify-center text-gray-300"><ImageIcon className="w-8 h-8 opacity-20"/></div>}
                <label className="absolute inset-0 flex items-center justify-center bg-black/5 active:bg-black/20 transition cursor-pointer"><div className="bg-white p-2 rounded-full shadow-lg transform active:scale-90 transition"><Camera className="w-5 h-5 text-gray-700"/></div>
-               {/* CAPTURE USER + ACCEPT IMAGE */}
-               <input type="file" accept="image/*" capture="user" ref={fileInputRef} onChange={uploadPhoto} className="hidden" /></label>
+               
+               {/* ⚠️ CORRECTION CAMÉRA ANDROID : accept="image/*" + capture="user" */}
+               <input type="file" accept="image/*" capture="user" ref={fileInputRef} onChange={uploadPhoto} className="hidden" />
+               
+               </label>
              </div>
              <div className="aspect-square bg-gray-50 rounded-2xl relative overflow-hidden border-2 border-dashed border-gray-200 cursor-pointer hover:border-pink-200 transition" onClick={() => { if(pData.photo && !isExp(pData.photoTs, 3)) setViewingPhoto(pData.photo); }}>
                {pData.photo && !isExp(pData.photoTs, 3) ? <><img src={pData.photo} className="w-full h-full object-cover"/><div className="absolute top-2 right-2 p-1 bg-black/20 rounded-full text-white backdrop-blur-sm"><Maximize2 className="w-3 h-3"/></div><div className="absolute bottom-2 right-2 bg-black/60 backdrop-blur-sm text-white text-[10px] px-2 py-0.5 rounded-full font-mono">{fmtTime(pData.photoTs)}</div></> : <div className="w-full h-full flex items-center justify-center text-gray-300"><ImageIcon className="w-8 h-8 opacity-20"/></div>}
