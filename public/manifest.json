@@ -1,0 +1,22 @@
+{
+    "name": "LoveSync",
+    "short_name": "LoveSync",
+    "start_url": ".",
+    "display": "standalone",
+    "background_color": "#fff1f2",
+    "theme_color": "#fff1f2",
+    "description": "Notre espace privé",
+    "orientation": "portrait",
+    "icons": [
+      {
+        "src": "https://cdnjs.cloudflare.com/ajax/libs/twemoji/14.0.2/72x72/2764.png",
+        "sizes": "192x192",
+        "type": "image/png"
+      },
+      {
+        "src": "https://cdnjs.cloudflare.com/ajax/libs/twemoji/14.0.2/72x72/2764.png",
+        "sizes": "512x512",
+        "type": "image/png"
+      }
+    ]
+  }
