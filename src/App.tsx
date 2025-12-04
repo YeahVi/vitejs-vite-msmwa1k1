@@ -98,26 +98,54 @@ export default function App() {
   const bottomRef = useRef(null);
   const mainRef = useRef(null);
 
-  // AUTH + RECONNEXION AUTO
+  // AUTH + SÉCURITÉ CHARGEMENT
   useEffect(() => {
-    const init = async () => { try { await signInAnonymously(auth); } catch (e) { console.error(e); } };
+    let mounted = true;
+    
+    // 1. Démarrer Firebase
+    const init = async () => { 
+      try { 
+        await signInAnonymously(auth); 
+      } catch (e) { 
+        console.error("Auth error", e);
+        // Si erreur, on débloque quand même
+        if(mounted) setLoading(false); 
+      } 
+    };
     init();
     
-    // Détection de retour sur l'appli (sortie de veille)
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === 'visible') {
-        // Force un petit refresh de la connexion si on revient
-        if (!auth.currentUser) init();
+    // 2. TIMEOUT DE SÉCURITÉ : Si dans 3s c'est pas chargé, on force l'ouverture
+    const safetyTimer = setTimeout(() => {
+      if(mounted && loading) {
+        setLoading(false);
       }
-    };
-    document.addEventListener("visibilitychange", handleVisibilityChange);
+    }, 2000); // 2 secondes max d'attente
 
+    // 3. Charger les infos locales
     const saved = localStorage.getItem('lovesync_vivien_anais_final');
-    if (saved) { try { setCreds(JSON.parse(saved)); setView('app'); } catch(e) { setView('login'); } } else { setView('login'); }
+    if (saved) { 
+      try { 
+        setCreds(JSON.parse(saved)); 
+        setView('app'); 
+      } catch(e) { 
+        setView('login'); 
+      } 
+    } else { 
+      setView('login'); 
+    }
     
-    return () => {
-      document.removeEventListener("visibilitychange", handleVisibilityChange);
-      onAuthStateChanged(auth, u => { setUser(u); setLoading(false); });
+    // 4. Écouter l'état de connexion
+    const unsubscribe = onAuthStateChanged(auth, u => { 
+      if(mounted) {
+        setUser(u); 
+        setLoading(false); 
+      }
+    });
+
+    return () => { 
+      mounted = false; 
+      clearTimeout(safetyTimer); 
+      unsubscribe(); 
     };
   }, []);
 
@@ -202,7 +230,11 @@ export default function App() {
   const lastWinRole = roomData?.game_last_winner_role;
   const lastResultColor = lastWinRole === 'draw' ? 'text-gray-400' : (lastWinRole === creds?.role ? 'text-green-500 font-bold' : 'text-red-400 font-bold');
 
-  if (loading || view === 'loading') return <div className="fixed inset-0 bg-pink-50 flex items-center justify-center"><Loader2 className="animate-spin text-pink-400" /></div>;
+  if (loading || view === 'loading') return <div className="fixed inset-0 bg-pink-50 flex items-center justify-center flex-col gap-4">
+    <Loader2 className="animate-spin text-pink-400 w-8 h-8" />
+    <button onClick={() => setLoading(false)} className="text-xs text-pink-300 underline">Forcer l'ouverture</button>
+  </div>;
+  
   if (view === 'login') {
     return (
       <div className="fixed inset-0 bg-pink-50 flex flex-col items-center justify-center p-6">
