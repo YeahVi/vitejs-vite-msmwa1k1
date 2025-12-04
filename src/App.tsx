@@ -2,9 +2,9 @@ import React, { useState, useEffect, useRef } from 'react';
 import { initializeApp } from 'firebase/app';
 import { getAuth, signInAnonymously, onAuthStateChanged } from 'firebase/auth';
 import { getFirestore, doc, onSnapshot, setDoc, serverTimestamp } from 'firebase/firestore';
-import { Heart, Camera, MapPin, Send, LogOut, Loader2, Image as ImageIcon, X, PenTool, Type, Lock, Maximize2, Swords } from 'lucide-react';
+import { Heart, Camera, MapPin, Send, LogOut, Loader2, Image as ImageIcon, X, PenTool, Type, Lock, Maximize2, Swords, RefreshCw } from 'lucide-react';
 
-// --- CONFIGURATION FIREBASE ---
+// --- CONFIGURATION ---
 const firebaseConfig = {
   apiKey: "AIzaSyBw5oZKTpok2YwkZV7XFNCftpwFwyK3mYA",
   authDomain: "lovesync-1ceef.firebaseapp.com",
@@ -98,12 +98,27 @@ export default function App() {
   const bottomRef = useRef(null);
   const mainRef = useRef(null);
 
+  // AUTH + RECONNEXION AUTO
   useEffect(() => {
     const init = async () => { try { await signInAnonymously(auth); } catch (e) { console.error(e); } };
     init();
+    
+    // Détection de retour sur l'appli (sortie de veille)
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        // Force un petit refresh de la connexion si on revient
+        if (!auth.currentUser) init();
+      }
+    };
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
     const saved = localStorage.getItem('lovesync_vivien_anais_final');
     if (saved) { try { setCreds(JSON.parse(saved)); setView('app'); } catch(e) { setView('login'); } } else { setView('login'); }
-    return onAuthStateChanged(auth, u => { setUser(u); setLoading(false); });
+    
+    return () => {
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+      onAuthStateChanged(auth, u => { setUser(u); setLoading(false); });
+    };
   }, []);
 
   useEffect(() => {
@@ -157,14 +172,7 @@ export default function App() {
     const newScore = (roomData?.[`game_${winnerRole}_score`] || 0) + 1;
     const p1M = roomData?.game_p1_move; const p2M = roomData?.game_p2_move;
     const resultText = `${myDisplayName} (${p1M}) vs ${partnerDisplayName} (${p2M})`;
-    // On enregistre le rôle du gagnant pour la couleur (p1, p2 ou draw)
-    updateDB({ 
-      game_p1_move: null, 
-      game_p2_move: null, 
-      [`game_${winnerRole}_score`]: newScore, 
-      game_last_result: resultText, 
-      game_last_winner_role: winnerRole 
-    });
+    updateDB({ game_p1_move: null, game_p2_move: null, [`game_${winnerRole}_score`]: newScore, game_last_result: resultText, game_last_winner_role: winnerRole });
   };
   const getShifumiResult = (m1, m2) => {
     if (!m1 || !m2) return null;
@@ -191,8 +199,6 @@ export default function App() {
   const myMove = roomData?.[`game_${creds?.role}_move`];
   const partnerMove = roomData?.[`game_${otherRole}_move`];
   const winner = getShifumiResult(roomData?.game_p1_move, roomData?.game_p2_move);
-  
-  // Couleur du dernier match
   const lastWinRole = roomData?.game_last_winner_role;
   const lastResultColor = lastWinRole === 'draw' ? 'text-gray-400' : (lastWinRole === creds?.role ? 'text-green-500 font-bold' : 'text-red-400 font-bold');
 
@@ -215,9 +221,13 @@ export default function App() {
     );
   }
 
+  // --- FONCTION DE RELOAD ---
+  const handleReload = () => window.location.reload();
+
   return (
     <div className="fixed inset-0 bg-slate-50 font-sans overflow-hidden">
       {viewingPhoto && <div className="fixed inset-0 z-[60] bg-black/90 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in" onClick={() => setViewingPhoto(null)}><img src={viewingPhoto} className="max-w-full max-h-full rounded-xl shadow-2xl object-contain animate-in zoom-in-95 duration-200" /><button className="absolute top-6 right-6 p-2 bg-white/20 rounded-full text-white backdrop-blur hover:bg-white/40"><X className="w-6 h-6"/></button></div>}
+      
       {showEmojiPicker && (
         <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in" onClick={()=>setShowEmojiPicker(false)}>
            <div className="bg-white w-full max-w-sm rounded-3xl p-4 shadow-xl flex flex-col max-h-[80vh]" onClick={e=>e.stopPropagation()}>
@@ -235,10 +245,17 @@ export default function App() {
            </div>
         </div>
       )}
+
+      {/* HEADER AVEC BOUTON REFRESH */}
       <div className="absolute top-0 left-0 right-0 p-6 bg-white flex justify-between items-center z-10 shadow-sm h-20">
         <div><h2 className="font-bold text-lg text-gray-800">{creds.name}</h2><div className="flex items-center text-xs text-gray-500 font-medium"><MapPin className="w-3 h-3 mr-1 text-pink-500 fill-current"/>{dist ? `${dist} km` : "Recherche..."}</div></div>
-        <button onClick={logout} className="p-2 rounded-full hover:bg-gray-100 transition"><LogOut className="w-5 h-5 text-gray-400"/></button>
+        <div className="flex gap-2">
+          <button onClick={handleReload} className="p-2 rounded-full hover:bg-gray-100 transition text-blue-500 bg-blue-50"><RefreshCw className="w-5 h-5"/></button>
+          <button onClick={logout} className="p-2 rounded-full hover:bg-gray-100 transition text-gray-400"><LogOut className="w-5 h-5"/></button>
+        </div>
       </div>
+
+      {/* CONTENU */}
       <div ref={mainRef} className="absolute top-20 bottom-0 left-0 right-0 overflow-y-auto p-4 space-y-5 pb-32 overscroll-none">
         
         {/* MOODS */}
@@ -305,10 +322,7 @@ export default function App() {
         <div className="bg-purple-50 p-5 rounded-[2.5rem] shadow-sm border border-purple-100 relative">
           <div className="flex justify-between items-center mb-4">
              <h3 className="text-xs font-bold text-purple-600 uppercase tracking-widest flex items-center gap-2"><Swords className="w-4 h-4"/> Duel</h3>
-             <div className="flex gap-2 text-[10px] font-bold">
-               <span className="bg-white px-2 py-1 rounded-lg text-purple-800 border border-purple-100">Moi: {roomData?.[`game_${creds?.role}_score`] || 0}</span>
-               <span className="bg-white px-2 py-1 rounded-lg text-purple-800 border border-purple-100">{partnerDisplayName}: {roomData?.[`game_${otherRole}_score`] || 0}</span>
-             </div>
+             <div className="flex gap-2 text-[10px] font-bold"><span className="bg-white px-2 py-1 rounded-lg text-purple-800 border border-purple-100">Moi: {roomData?.[`game_${creds?.role}_score`] || 0}</span><span className="bg-white px-2 py-1 rounded-lg text-purple-800 border border-purple-100">{partnerDisplayName}: {roomData?.[`game_${otherRole}_score`] || 0}</span></div>
           </div>
           <div className="text-center">
             {myMove && partnerMove ? (
