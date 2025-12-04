@@ -19,7 +19,7 @@ const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
 
-// --- OUTILS (Compression & Canvas) ---
+// --- OUTILS ---
 const compressImage = (file) => {
   return new Promise((resolve) => {
     const reader = new FileReader();
@@ -39,6 +39,13 @@ const compressImage = (file) => {
       };
     };
   });
+};
+
+const EMOJIS_CATEGORIES = {
+  "Amour & Humeur": ["❤️", "🧡", "💛", "💚", "💙", "💜", "🖤", "🤍", "🤎", "💔", "❤️‍🔥", "❤️‍🩹", "💕", "💞", "💓", "💗", "💖", "💘", "😊", "🥰", "😘", "😍", "🤩", "🤪", "🥺", "😎", "😴", "🤔", "😭", "😤", "🤯", "🫠", "😷", "🤠", "🥳", "🥴", "😈", "🤡", "💩", "👻", "🙂", "🙃", "😉", "😋", "😛", "😜", "🤓", "🧐", "😕", "😟", "🙁", "😮", "😯", "😲", "😳", "😓", "😥", "😢", "😨", "😱", "😖", "😣", "😞"],
+  "Gestes": ["👍", "👎", "👊", "✊", "🤛", "🤜", "🤞", "✌️", "🤟", "🤘", "👌", "🤌", "🤏", "👈", "👉", "👆", "👇", "☝️", "✋", "🤚", "🖐️", "🖖", "👋", "🤙", "💪", "🙏", "💅", "🤳", "👀", "🧠", "👄", "💋"],
+  "Miam & Activités": ["☕", "🍵", "🍻", "🥂", "🍷", "🥃", "🍸", "🍹", "🍾", "🍔", "🍟", "🍕", "🌭", "🥪", "🌮", "🌯", "🥗", "🥘", "🍝", "🍜", "🍲", "🍛", "🍣", "🍱", "🎮", "🕹️", "🎲", "⚽", "🏀", "🏈", "⚾", "🎾", "🏐", "🏉", "🎱", "🏓", "🏸", "🥊", "🥋", "🛹", "🎿", "🏂", "🏋️", "🏊", "🚗", "✈️", "🚀", "🏠", "💻", "📱", "💸", "💊", "🚬", "🛌", "🚿"],
+  "Nature & Animaux": ["🐶", "🐱", "🐭", "🐹", "🐰", "🦊", "🐻", "🐼", "🐻‍❄️", "🐨", "🐯", "🦁", "🐮", "🐷", "🐽", "🐸", "🐵", "🙈", "🙉", "🙊", "🐒", "🐔", "🐧", "🐦", "🐤", "🐣", "🐥", "🦆", "🦅", "🦉", "🦇", "🐺", "🐗", "🐴", "🦄", "🐝", "🪱", "🐛", "🦋", "🐌", "🐞", "🐜", "🪰", "🪲", "🪳", "🌸", "🏵️", "🌹", "🥀", "🌺", "🌻", "🌼", "🌷", "🌱", "🪴", "🌲", "🌳", "🌴", "🌵", "🌾", "🌿", "☘️", "🍀", "🍁", "🍂", "🍃", "☀️", "🌝", "🌚", "🌙", "☁️", "⛈️", "🔥", "💧", "✨", "🌈", "🌊"]
 };
 
 const DrawingCanvas = ({ onSave, onCancel }) => {
@@ -80,20 +87,15 @@ const DrawingCanvas = ({ onSave, onCancel }) => {
   );
 };
 
-const EMOJIS_CATEGORIES = {
-  "Amour & Humeur": ["❤️", "🧡", "💛", "💚", "💙", "💜", "🖤", "🤍", "🤎", "💔", "❤️‍🔥", "❤️‍🩹", "💕", "💞", "💓", "💗", "💖", "💘", "😊", "🥰", "😘", "😍", "🤩", "🤪", "🥺", "😎", "😴", "🤔", "😭", "😤", "🤯", "🫠", "😷", "🤠", "🥳", "🥴", "😈", "🤡", "💩", "👻", "🙂", "🙃", "😉", "😋", "😛", "😜", "🤓", "🧐", "😕", "😟", "🙁", "😮", "😯", "😲", "😳", "😓", "😥", "😢", "😨", "😱", "😖", "😣", "😞"],
-  "Gestes": ["👍", "👎", "👊", "✊", "🤛", "🤜", "🤞", "✌️", "🤟", "🤘", "👌", "🤌", "🤏", "👈", "👉", "👆", "👇", "☝️", "✋", "🤚", "🖐️", "🖖", "👋", "🤙", "💪", "🙏", "💅", "🤳", "👀", "🧠", "👄", "💋"],
-  "Miam & Activités": ["☕", "🍵", "🍻", "🥂", "🍷", "🥃", "🍸", "🍹", "🍾", "🍔", "🍟", "🍕", "🌭", "🥪", "🌮", "🌯", "🥗", "🥘", "🍝", "🍜", "🍲", "🍛", "🍣", "🍱", "🎮", "🕹️", "🎲", "⚽", "🏀", "🏈", "⚾", "🎾", "🏐", "🏉", "🎱", "🏓", "🏸", "🥊", "🥋", "🛹", "🎿", "🏂", "🏋️", "🏊", "🚗", "✈️", "🚀", "🏠", "💻", "📱", "💸", "💊", "🚬", "🛌", "🚿"],
-  "Nature & Animaux": ["🐶", "🐱", "🐭", "🐹", "🐰", "🦊", "🐻", "🐼", "🐻‍❄️", "🐨", "🐯", "🦁", "🐮", "🐷", "🐽", "🐸", "🐵", "🙈", "🙉", "🙊", "🐒", "🐔", "🐧", "🐦", "🐤", "🐣", "🐥", "🦆", "🦅", "🦉", "🦇", "🐺", "🐗", "🐴", "🦄", "🐝", "🪱", "🐛", "🦋", "🐌", "🐞", "🐜", "🪰", "🪲", "🪳", "🌸", "🏵️", "🌹", "🥀", "🌺", "🌻", "🌼", "🌷", "🌱", "🪴", "🌲", "🌳", "🌴", "🌵", "🌾", "🌿", "☘️", "🍀", "🍁", "🍂", "🍃", "☀️", "🌝", "🌚", "🌙", "☁️", "⛈️", "🔥", "💧", "✨", "🌈", "🌊"]
-};
-
-// --- APP ---
 export default function App() {
   const [user, setUser] = useState(null); const [roomData, setRoomData] = useState(null); const [loading, setLoading] = useState(true);
   const [inputCode, setInputCode] = useState(""); const [authError, setAuthError] = useState("");
   const [creds, setCreds] = useState(null); const [view, setView] = useState('loading');
   const [showEmojiPicker, setShowEmojiPicker] = useState(false); const [viewingPhoto, setViewingPhoto] = useState(null);
   const [noteMode, setNoteMode] = useState('text'); const [noteInput, setNoteInput] = useState(""); const fileInputRef = useRef(null);
+  
+  // FIX CLAVIER
+  const bottomRef = useRef(null);
 
   useEffect(() => {
     const init = async () => { try { await signInAnonymously(auth); } catch (e) { console.error(e); } };
@@ -108,7 +110,7 @@ export default function App() {
     const roomRef = doc(db, 'amoureux', 'notre_espace_secret');
     const unsub = onSnapshot(roomRef, (snap) => {
       if (snap.exists()) setRoomData(snap.data()); else setDoc(roomRef, { created: serverTimestamp() }, { merge: true });
-    }, (err) => console.error("Sync Error", err));
+    });
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(pos => {
         setDoc(roomRef, { [`${creds.role}_geo`]: { lat: pos.coords.latitude, lng: pos.coords.longitude }, [`${creds.role}_name`]: creds.name, last_active: serverTimestamp() }, { merge: true }).catch(e => {});
@@ -128,26 +130,30 @@ export default function App() {
 
   const logout = () => { if(confirm("Se déconnecter ?")) { localStorage.removeItem('lovesync_vivien_anais_final'); setCreds(null); setInputCode(""); setView('login'); } };
   const updateDB = async (data) => { if (!user) return; const roomRef = doc(db, 'amoureux', 'notre_espace_secret'); await setDoc(roomRef, data, { merge: true }); };
-  const setMood = (emoji) => { setShowEmojiPicker(false); updateDB({ [`${creds.role}_mood`]: emoji, [`${creds.role}_mood_ts`]: Date.now(), [`${creds.role}_prev_mood`]: roomData?.[`${creds.role}_mood`] || null, [`${creds.role}_prev_mood_ts`]: roomData?.[`${creds.role}_mood_ts`] || null }); };
+  const setMood = (emoji) => { setShowEmojiPicker(false); updateDB({ [`${creds.role}_mood`]: emoji, [`${creds.role}_mood_ts`]: Date.now() }); };
   
   const uploadPhoto = async (e) => {
     const file = e.target.files[0]; if (!file) return;
     try {
       const compressedBase64 = await compressImage(file);
       await updateDB({ [`${creds.role}_photo`]: compressedBase64, [`${creds.role}_photo_ts`]: Date.now() });
-    } catch(err) { alert("Erreur photo, réessaie !"); }
+    } catch(err) { alert("Erreur photo"); }
   };
 
   const sendNote = async () => { if (!noteInput.trim()) return; await updateDB({ shared_note: noteInput, shared_sketch: null, note_author: creds.name, note_ts: Date.now() }); setNoteInput(""); };
   const sendSketch = async (base64) => { await updateDB({ shared_sketch: base64, shared_note: null, note_author: creds.name, note_ts: Date.now() }); setNoteMode('text'); };
   
+  // FIX CLAVIER: Scroll auto
+  const scrollToBottom = () => { setTimeout(() => { bottomRef.current?.scrollIntoView({ behavior: 'smooth' }); }, 300); };
+
   const getDist = (l1, n1, l2, n2) => {
     if(!l1 || !n1 || !l2 || !n2) return null;
     const R=6371, dLat=(l2-l1)*Math.PI/180, dLon=(n2-n1)*Math.PI/180;
     const a=Math.sin(dLat/2)*Math.sin(dLat/2)+Math.cos(l1*Math.PI/180)*Math.cos(l2*Math.PI/180)*Math.sin(dLon/2)*Math.sin(dLon/2);
     return (R*2*Math.atan2(Math.sqrt(a), Math.sqrt(1-a))).toFixed(1);
   };
-  const isExp = (ts, h) => !ts || (Date.now()-ts)>(h*3600000);
+  // FIX DUREE: 3h
+  const isExp = (ts, h) => !ts || (Date.now()-ts)>(3*3600000); 
   const fmtTime = (ts) => ts ? new Date(ts).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}) : "";
   const otherRole = creds?.role === 'p1' ? 'p2' : 'p1';
   const myDisplayName = creds?.role === 'p1' ? 'Vivien' : 'Anaïs';
@@ -157,10 +163,11 @@ export default function App() {
   const pData = { mood: roomData?.[`${otherRole}_mood`], moodTs: roomData?.[`${otherRole}_mood_ts`], photo: roomData?.[`${otherRole}_photo`], photoTs: roomData?.[`${otherRole}_photo_ts`], geo: roomData?.[`${otherRole}_geo`] };
   const dist = getDist(myData.geo?.lat, myData.geo?.lng, pData.geo?.lat, pData.geo?.lng);
 
-  if (loading || view === 'loading') return <div className="min-h-screen bg-pink-50 flex items-center justify-center"><Loader2 className="animate-spin text-pink-400" /></div>;
+  // FIX LAYOUT: h-[100dvh]
+  if (loading || view === 'loading') return <div className="h-[100dvh] bg-pink-50 flex items-center justify-center"><Loader2 className="animate-spin text-pink-400" /></div>;
   if (view === 'login') {
     return (
-      <div className="min-h-screen bg-pink-50 flex flex-col items-center justify-center p-6">
+      <div className="h-[100dvh] bg-pink-50 flex flex-col items-center justify-center p-6">
         <div className="bg-white p-8 rounded-3xl shadow-xl w-full max-w-sm text-center">
           <Heart className="w-12 h-12 text-pink-500 mx-auto mb-4 animate-bounce" />
           <h1 className="text-2xl font-bold text-gray-800 mb-2">LoveSync</h1>
@@ -177,8 +184,8 @@ export default function App() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 pb-20 font-sans relative">
-      {viewingPhoto && <div className="fixed inset-0 z-[60] bg-black/90 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in" onClick={() => setViewingPhoto(null)}><img src={viewingPhoto} className="max-w-full max-h-full rounded-xl shadow-2xl object-contain animate-in zoom-in-95 duration-200" /><button className="absolute top-6 right-6 p-2 bg-white/20 rounded-full text-white backdrop-blur hover:bg-white/40"><X className="w-6 h-6"/></button></div>}
+    <div className="h-[100dvh] bg-slate-50 font-sans relative overflow-y-auto overflow-x-hidden">
+      {viewingPhoto && <div className="fixed inset-0 z-[60] bg-black/90 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in" onClick={() => setViewingPhoto(null)}><img src={viewingPhoto} className="max-w-full max-h-full rounded-xl shadow-2xl object-contain" /><button className="absolute top-6 right-6 p-2 bg-white/20 rounded-full text-white backdrop-blur hover:bg-white/40"><X className="w-6 h-6"/></button></div>}
       {showEmojiPicker && (
         <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in" onClick={()=>setShowEmojiPicker(false)}>
            <div className="bg-white w-full max-w-sm rounded-3xl p-4 shadow-xl flex flex-col max-h-[80vh]" onClick={e=>e.stopPropagation()}>
@@ -200,7 +207,7 @@ export default function App() {
         <div><h2 className="font-bold text-lg text-gray-800">{creds.name}</h2><div className="flex items-center text-xs text-gray-500 font-medium"><MapPin className="w-3 h-3 mr-1 text-pink-500 fill-current"/>{dist ? `${dist} km` : "Recherche..."}</div></div>
         <button onClick={logout} className="p-2 rounded-full hover:bg-gray-100 transition"><LogOut className="w-5 h-5 text-gray-400"/></button>
       </div>
-      <div className="p-4 space-y-5 max-w-md mx-auto">
+      <div className="p-4 space-y-5 max-w-md mx-auto pb-32">
         <div className="grid grid-cols-2 gap-4">
           <div onClick={()=>setShowEmojiPicker(true)} className="bg-white p-4 rounded-[2rem] shadow-sm text-center border-b-4 border-blue-100 cursor-pointer active:scale-95 transition hover:shadow-md relative overflow-hidden">
             <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-blue-200 to-cyan-200"></div><div className="text-[10px] font-bold text-blue-400 mb-2 uppercase tracking-wider">Moi ({myDisplayName})</div>
@@ -218,7 +225,10 @@ export default function App() {
           <div className="grid grid-cols-2 gap-4">
              <div className="aspect-square bg-gray-50 rounded-2xl relative overflow-hidden group shadow-inner">
                {myData.photo && !isExp(myData.photoTs, 3) ? <img src={myData.photo} className="w-full h-full object-cover"/> : <div className="w-full h-full flex items-center justify-center text-gray-300"><ImageIcon className="w-8 h-8 opacity-20"/></div>}
-               <label className="absolute inset-0 flex items-center justify-center bg-black/5 active:bg-black/20 transition cursor-pointer"><div className="bg-white p-2 rounded-full shadow-lg transform active:scale-90 transition"><Camera className="w-5 h-5 text-gray-700"/></div><input type="file" accept="image/*" capture="user" ref={fileInputRef} onChange={uploadPhoto} className="hidden" /></label>
+               <label className="absolute inset-0 flex items-center justify-center bg-black/5 active:bg-black/20 transition cursor-pointer"><div className="bg-white p-2 rounded-full shadow-lg transform active:scale-90 transition"><Camera className="w-5 h-5 text-gray-700"/></div>
+               {/* FIX CAMÉRA : capture="user" */}
+               <input type="file" accept="image/*" capture="user" ref={fileInputRef} onChange={uploadPhoto} className="hidden" />
+               </label>
              </div>
              <div className="aspect-square bg-gray-50 rounded-2xl relative overflow-hidden border-2 border-dashed border-gray-200 cursor-pointer hover:border-pink-200 transition" onClick={() => { if(pData.photo && !isExp(pData.photoTs, 3)) setViewingPhoto(pData.photo); }}>
                {pData.photo && !isExp(pData.photoTs, 3) ? <><img src={pData.photo} className="w-full h-full object-cover"/><div className="absolute top-2 right-2 p-1 bg-black/20 rounded-full text-white backdrop-blur-sm"><Maximize2 className="w-3 h-3"/></div><div className="absolute bottom-2 right-2 bg-black/60 backdrop-blur-sm text-white text-[10px] px-2 py-0.5 rounded-full font-mono">{fmtTime(pData.photoTs)}</div></> : <div className="w-full h-full flex items-center justify-center text-gray-300"><ImageIcon className="w-8 h-8 opacity-20"/></div>}
@@ -242,11 +252,19 @@ export default function App() {
           </div>
           {noteMode === 'text' ? (
             <div className="flex gap-2 bg-white p-1 rounded-xl shadow-sm border border-yellow-50">
-              <input className="flex-1 rounded-xl border-none outline-none px-3 text-sm bg-transparent placeholder-gray-300 text-gray-900" placeholder="Un petit mot..." value={noteInput} onChange={e=>setNoteInput(e.target.value)} />
+              <input 
+                className="flex-1 rounded-xl border-none outline-none px-3 text-sm bg-transparent placeholder-gray-300 text-gray-900" 
+                placeholder="Un petit mot..." 
+                value={noteInput} 
+                onFocus={scrollToBottom} // SCROLL AUTO ACTIVÉ
+                onChange={e=>setNoteInput(e.target.value)} 
+              />
               <button onClick={sendNote} className="bg-yellow-400 active:bg-yellow-500 text-yellow-900 p-2.5 rounded-lg transition active:scale-95 shadow-sm"><Send className="w-4 h-4"/></button>
             </div>
           ) : ( <DrawingCanvas onSave={sendSketch} onCancel={() => setNoteMode('text')} /> )}
         </div>
+        {/* Élément invisible pour le scroll */}
+        <div ref={bottomRef} className="h-4"></div>
       </div>
     </div>
   );
